@@ -48,6 +48,11 @@ jobs:
         run: |
           docker build -t $IMAGE_NAME:$TAG_NAME .
 
+      - name: Verify .env File
+        run: |
+          ls -la
+          test -f .env && echo ".env file found" || echo ".env file missing"
+
       - name: Deploy Container
         run: |
           docker stop $APP_NAME || true
@@ -59,15 +64,26 @@ jobs:
             --env-file .env \
             $IMAGE_NAME:$TAG_NAME
 
-      - name: Show Container Status
+      - name: Debug Container
         run: |
+          echo "===== RUNNING CONTAINERS ====="
           docker ps
 
-      - name: Follow Container Logs For 60 Seconds
+          echo "===== ALL CONTAINERS ====="
+          docker ps -a
+
+      - name: Show Container Logs
         run: |
-          echo "Showing container logs for 60 seconds..."
+          docker logs $APP_NAME || true
+
+      - name: Follow Logs For 60 Seconds
+        run: |
           timeout 60 docker logs -f $APP_NAME || true
 
-      - name: Final Container Logs
+      - name: Final Status
         run: |
-          docker logs --tail 100 $APP_NAME
+          echo "===== FINAL CONTAINER STATUS ====="
+          docker ps -a
+
+          echo "===== FINAL LOGS ====="
+          docker logs $APP_NAME || true
