@@ -21,14 +21,6 @@ env:
 
 jobs:
   production-release:
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push' ||
-      (
-        github.event.pull_request.merged == true &&
-        contains(github.event.pull_request.title, 'production release')
-      )
-
     runs-on: ubuntu-latest
 
     steps:
@@ -37,17 +29,43 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create Git Tag Before Build
+      - name: Check Tag Condition
         run: |
-          TAG_NAME="prod-v1.0.${{ github.run_number }}"
+          echo "Event name: ${{ github.event_name }}"
 
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "Commit message: ${{ github.event.head_commit.message }}"
+
+            if echo "${{ github.event.head_commit.message }}" | grep -qi "production release"; then
+              echo "CREATE_TAG=true" >> $GITHUB_ENV
+            else
+              echo "CREATE_TAG=false" >> $GITHUB_ENV
+            fi
+
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "PR title: ${{ github.event.pull_request.title }}"
+
+            if [ "${{ github.event.pull_request.merged }}" = "true" ] && echo "${{ github.event.pull_request.title }}" | grep -qi "production release"; then
+              echo "CREATE_TAG=true" >> $GITHUB_ENV
+            else
+              echo "CREATE_TAG=false" >> $GITHUB_ENV
+            fi
+
+          else
+            echo "Manual run detected. Build will run but tag will not be created."
+            echo "CREATE_TAG=false" >> $GITHUB_ENV
+          fi
+
+          echo "TAG_NAME=prod-v1.0.${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Create Git Tag Before Build
+        if: env.CREATE_TAG == 'true'
+        run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
           git tag -a "$TAG_NAME" -m "Production release $TAG_NAME"
           git push origin "$TAG_NAME"
-
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
       - name: Build Docker Image
         run: |
