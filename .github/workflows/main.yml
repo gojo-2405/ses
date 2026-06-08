@@ -91,10 +91,31 @@ jobs:
         run: |
           docker ps
           docker ps -a
+          docker logs $APP_NAME || true
 
-      - name: Follow Logs For 60 Seconds
+      - name: Install Cloudflared
         run: |
-          timeout 60 docker logs -f $APP_NAME || true
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
+          cloudflared --version
+
+      - name: Start Cloudflare Tunnel
+        run: |
+          cloudflared tunnel --url http://localhost:3000 --no-autoupdate > cloudflared.log 2>&1 &
+
+          echo "Waiting for Cloudflare tunnel URL..."
+          sleep 10
+
+          cat cloudflared.log
+
+          echo "======================================"
+          echo "Open the trycloudflare.com URL above"
+          echo "======================================"
+
+      - name: Follow Logs And Keep Tunnel Alive
+        run: |
+          echo "Tunnel will stay alive for 5 minutes..."
+          timeout 300 docker logs -f $APP_NAME || true
 
       - name: Final Logs
         run: |
