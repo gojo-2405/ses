@@ -46,7 +46,10 @@ pipeline {
 
                     git tag -a ${TAG_NAME} -m "Successful deployment ${TAG_NAME}"
 
-                    git push origin ${TAG_NAME}
+                    REPO_URL=$(git config --get remote.origin.url)
+                    CLEAN_URL=$(echo "$REPO_URL" | sed 's#https://##')
+
+                    git push https://${GIT_USER}:${GIT_TOKEN}@${CLEAN_URL} ${TAG_NAME}
                     '''
                 }
             }
